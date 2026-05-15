@@ -1,0 +1,529 @@
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  .hub { font-family: var(--font-sans); background: #fff; color: #111; }
+  .screen { display: none; animation: fadeIn 0.3s ease; }
+  .screen.active { display: block; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  .entry { display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; padding: 2rem; text-align: center; }
+  .logo { font-size: 12px; letter-spacing: 0.2em; color: #999; text-transform: uppercase; margin-bottom: 1.5rem; }
+  .hub-title { font-size: 42px; font-weight: 500; letter-spacing: -1px; line-height: 1.1; margin-bottom: 0.5rem; }
+  .hub-sub { font-size: 15px; color: #888; margin-bottom: 2.5rem; }
+  .name-input-wrap { position: relative; width: 100%; max-width: 340px; margin-bottom: 1rem; }
+  .name-input-wrap i { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: #aaa; font-size: 18px; }
+  #playerName { width: 100%; padding: 14px 14px 14px 44px; border: 1.5px solid #ddd; border-radius: 12px; font-size: 16px; outline: none; background: #fafafa; color: #111; }
+  #playerName:focus { border-color: #111; background: #fff; }
+  .enter-btn { width: 100%; max-width: 340px; padding: 14px; background: #111; color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 500; cursor: pointer; transition: background 0.2s, transform 0.1s; }
+  .enter-btn:hover { background: #333; }
+  .enter-btn:active { transform: scale(0.98); }
+
+  .lobby { padding: 2rem 1.5rem 3rem; max-width: 680px; margin: 0 auto; }
+  .lobby-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 0.5px solid #eee; }
+  .lobby-greeting { font-size: 22px; font-weight: 500; }
+  .lobby-greeting span { color: #888; font-weight: 400; }
+  .score-badge { font-size: 12px; background: #111; color: #fff; padding: 6px 14px; border-radius: 20px; }
+  .section-label { font-size: 11px; letter-spacing: 0.18em; color: #aaa; text-transform: uppercase; margin-bottom: 1rem; }
+  .games-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .game-card { background: #fff; border: 1px solid #e8e8e8; border-radius: 16px; padding: 1.5rem; cursor: pointer; transition: border-color 0.2s, transform 0.15s; position: relative; overflow: hidden; }
+  .game-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: #111; transform: scaleX(0); transition: transform 0.2s; transform-origin: left; }
+  .game-card:hover { border-color: #bbb; transform: translateY(-2px); }
+  .game-card:hover::before { transform: scaleX(1); }
+  .game-icon { width: 44px; height: 44px; background: #f5f5f5; border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; font-size: 22px; }
+  .game-name { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+  .game-desc { font-size: 13px; color: #888; line-height: 1.5; }
+  .game-badge { position: absolute; top: 14px; right: 14px; font-size: 10px; padding: 3px 8px; border-radius: 20px; }
+  .badge-easy { background: #f0f0f0; color: #666; }
+  .badge-medium { background: #111; color: #fff; }
+  .badge-hard { background: #444; color: #fff; }
+
+  .game-screen { padding: 1.5rem; max-width: 680px; margin: 0 auto; }
+  .game-header { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; }
+  .back-btn { width: 36px; height: 36px; border: 1px solid #e8e8e8; border-radius: 10px; background: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #111; }
+  .back-btn:hover { background: #f5f5f5; }
+  .game-title-bar { flex: 1; }
+  .game-title-bar h2 { font-size: 18px; font-weight: 500; }
+  .game-title-bar p { font-size: 13px; color: #888; }
+  .game-stat { font-size: 13px; background: #f5f5f5; padding: 6px 14px; border-radius: 20px; font-weight: 500; }
+
+  /* MEMORY GAME */
+  .memory-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 1rem; }
+  .mem-card {
+    aspect-ratio: 1;
+    border-radius: 14px;
+    cursor: pointer;
+    perspective: 600px;
+    position: relative;
+  }
+  .mem-card-inner {
+    width: 100%; height: 100%;
+    position: relative;
+    transform-style: preserve-3d;
+    transition: transform 0.45s cubic-bezier(0.4,0,0.2,1);
+    border-radius: 14px;
+  }
+  .mem-card.flipped .mem-card-inner { transform: rotateY(180deg); }
+  .mem-card.matched .mem-card-inner { transform: rotateY(180deg); }
+  .mem-face, .mem-back {
+    position: absolute; inset: 0;
+    border-radius: 14px;
+    backface-visibility: hidden;
+    display: flex; align-items: center; justify-content: center;
+    overflow: hidden;
+  }
+  .mem-back {
+    background: #111;
+    color: #fff;
+    font-size: 22px;
+  }
+  .mem-back-pattern {
+    width: 100%; height: 100%;
+    display: grid;
+    grid-template-columns: repeat(3,1fr);
+    opacity: 0.15;
+    font-size: 14px;
+    align-items: center;
+    justify-items: center;
+    padding: 4px;
+  }
+  .mem-face {
+    transform: rotateY(180deg);
+    background: #f8f8f8;
+    border: 2px solid #e0e0e0;
+    flex-direction: column;
+    gap: 4px;
+  }
+  .mem-card.matched .mem-face {
+    background: #111;
+    border-color: #111;
+  }
+  .mem-card.matched .mem-face .animal-img { filter: brightness(1.1); }
+  .mem-card.matched .mem-face .animal-label { color: #fff; }
+  .animal-img { font-size: 34px; line-height: 1; }
+  .animal-label { font-size: 10px; color: #888; font-weight: 500; letter-spacing: 0.05em; }
+
+  /* TYPING GAME */
+  .typing-area { border: 1px solid #e8e8e8; border-radius: 16px; padding: 1.5rem; margin-bottom: 1rem; }
+  .typing-prompt { font-size: 18px; line-height: 1.8; font-family: var(--font-mono); word-break: break-word; }
+  .typing-prompt .correct { color: #111; }
+  .typing-prompt .wrong { background: #fee; color: #c00; border-radius: 2px; }
+  .typing-prompt .cursor { border-right: 2px solid #111; animation: blink 0.7s infinite; }
+  .typing-prompt .pending { color: #ccc; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  #typingInput { width: 100%; padding: 12px 14px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; font-family: var(--font-mono); outline: none; color: #111; }
+  #typingInput:focus { border-color: #111; }
+  .stats-row { display: flex; gap: 12px; margin-bottom: 1rem; }
+  .stat-pill { flex: 1; background: #f8f8f8; border-radius: 10px; padding: 10px; text-align: center; }
+  .stat-pill .val { font-size: 20px; font-weight: 500; }
+  .stat-pill .lbl { font-size: 11px; color: #888; }
+
+  /* GUESS GAME */
+  .guess-area { border: 1px solid #e8e8e8; border-radius: 16px; padding: 1.5rem; text-align: center; margin-bottom: 1rem; }
+  .guess-big { font-size: 64px; font-weight: 500; letter-spacing: -2px; margin-bottom: 0.5rem; }
+  .guess-hint { font-size: 14px; color: #888; margin-bottom: 1.5rem; min-height: 20px; }
+  .guess-input-row { display: flex; gap: 10px; max-width: 300px; margin: 0 auto; }
+  #guessInput { flex: 1; padding: 12px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 18px; text-align: center; outline: none; color: #111; }
+  #guessInput:focus { border-color: #111; }
+  .guess-btn { padding: 12px 20px; background: #111; color: #fff; border: none; border-radius: 10px; font-size: 15px; cursor: pointer; }
+  .guess-history { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 1rem; }
+  .guess-pill { padding: 4px 12px; border-radius: 20px; font-size: 13px; font-weight: 500; }
+  .too-low { background: #f0f0f0; color: #666; }
+  .too-high { background: #111; color: #fff; }
+
+  /* SCRAMBLE GAME */
+  .scramble-area { text-align: center; border: 1px solid #e8e8e8; border-radius: 16px; padding: 2rem 1.5rem; margin-bottom: 1rem; }
+  .scrambled-word { font-size: 40px; font-weight: 500; letter-spacing: 8px; margin-bottom: 0.75rem; font-family: var(--font-mono); }
+  .scramble-hint { font-size: 13px; color: #aaa; margin-bottom: 1.5rem; }
+  #scrambleInput { width: 100%; max-width: 280px; padding: 12px 14px; border: 1.5px solid #ddd; border-radius: 10px; font-size: 18px; text-align: center; outline: none; font-family: var(--font-mono); letter-spacing: 4px; color: #111; }
+  #scrambleInput:focus { border-color: #111; }
+
+  .action-btn { width: 100%; padding: 13px; background: #111; color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 0.75rem; }
+  .action-btn:hover { background: #333; }
+  .action-btn.outline { background: transparent; color: #111; border: 1.5px solid #111; }
+  .action-btn.outline:hover { background: #f5f5f5; }
+  .result-msg { text-align: center; padding: 1rem; border-radius: 12px; font-size: 15px; font-weight: 500; margin-bottom: 0.75rem; }
+  .result-win { background: #111; color: #fff; }
+  .result-lose { background: #f5f5f5; color: #111; }
+</style>
+
+<div class="hub" id="hub">
+  <h2 style="position:absolute;left:-9999px">Games Hub — enter your name and pick a game</h2>
+
+  <div class="screen active" id="screen-entry">
+    <div class="entry">
+      <p class="logo">Games Hub</p>
+      <h1 class="hub-title">Play. Score.<br>Have Fun.</h1>
+      <p class="hub-sub">Enter your name to start</p>
+      <div class="name-input-wrap">
+        <i class="ti ti-user" aria-hidden="true"></i>
+        <input type="text" id="playerName" placeholder="Your name..." maxlength="20" autocomplete="off" />
+      </div>
+      <button class="enter-btn" onclick="enterHub()">Enter the Hub &nbsp;→</button>
+    </div>
+  </div>
+
+  <div class="screen" id="screen-lobby">
+    <div class="lobby">
+      <div class="lobby-header">
+        <div>
+          <div class="lobby-greeting">Hello, <span id="greetName">Player</span></div>
+          <div style="font-size:13px;color:#888;margin-top:2px">Choose a game to play</div>
+        </div>
+        <div class="score-badge" id="totalScore">Score: 0</div>
+      </div>
+      <p class="section-label">Available games</p>
+      <div class="games-grid">
+        <div class="game-card" onclick="startGame('memory')">
+          <span class="game-badge badge-hard">Hard</span>
+          <div class="game-icon">🐾</div>
+          <div class="game-name">Animal Memory</div>
+          <div class="game-desc">Flip cards to match adorable animal pairs</div>
+        </div>
+        <div class="game-card" onclick="startGame('typing')">
+          <span class="game-badge badge-medium">Medium</span>
+          <div class="game-icon">⌨️</div>
+          <div class="game-name">Speed Typing</div>
+          <div class="game-desc">Race against time to type phrases correctly</div>
+        </div>
+        <div class="game-card" onclick="startGame('guess')">
+          <span class="game-badge badge-easy">Easy</span>
+          <div class="game-icon">🎯</div>
+          <div class="game-name">Number Guess</div>
+          <div class="game-desc">Guess the secret number between 1–100</div>
+        </div>
+        <div class="game-card" onclick="startGame('scramble')">
+          <span class="game-badge badge-medium">Medium</span>
+          <div class="game-icon">🔤</div>
+          <div class="game-name">Word Scramble</div>
+          <div class="game-desc">Unscramble the letters to find the word</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MEMORY GAME -->
+  <div class="screen" id="screen-memory">
+    <div class="game-screen">
+      <div class="game-header">
+        <button class="back-btn" onclick="goLobby()" aria-label="Back"><i class="ti ti-arrow-left"></i></button>
+        <div class="game-title-bar"><h2>Animal Memory</h2><p>Match all animal pairs</p></div>
+        <div class="game-stat" id="movesCount">0 moves</div>
+      </div>
+      <div class="memory-grid" id="memoryGrid"></div>
+      <div id="memoryResult"></div>
+      <button class="action-btn outline" id="memRestart" onclick="initMemory()" style="display:none">Play again</button>
+    </div>
+  </div>
+
+  <!-- TYPING GAME -->
+  <div class="screen" id="screen-typing">
+    <div class="game-screen">
+      <div class="game-header">
+        <button class="back-btn" onclick="goLobby()" aria-label="Back"><i class="ti ti-arrow-left"></i></button>
+        <div class="game-title-bar"><h2>Speed Typing</h2><p>Type the phrase as fast as you can</p></div>
+        <div class="game-stat" id="typingStat">⏱ 30s</div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-pill"><div class="val" id="wpmVal">0</div><div class="lbl">WPM</div></div>
+        <div class="stat-pill"><div class="val" id="accVal">100%</div><div class="lbl">Accuracy</div></div>
+        <div class="stat-pill"><div class="val" id="timeVal">30</div><div class="lbl">Seconds</div></div>
+      </div>
+      <div class="typing-area">
+        <div class="typing-prompt" id="typingPrompt"></div>
+      </div>
+      <input type="text" id="typingInput" placeholder="Start typing here..." autocomplete="off" oninput="handleTyping()" />
+      <div id="typingResult"></div>
+      <button class="action-btn outline" id="typingRestart" onclick="initTyping()" style="display:none;margin-top:0.75rem">Play again</button>
+    </div>
+  </div>
+
+  <!-- GUESS GAME -->
+  <div class="screen" id="screen-guess">
+    <div class="game-screen">
+      <div class="game-header">
+        <button class="back-btn" onclick="goLobby()" aria-label="Back"><i class="ti ti-arrow-left"></i></button>
+        <div class="game-title-bar"><h2>Number Guess</h2><p>1 to 100</p></div>
+        <div class="game-stat" id="guessAttempts">10 left</div>
+      </div>
+      <div class="guess-area">
+        <div class="guess-big" id="guessBig">?</div>
+        <div class="guess-hint" id="guessHint">Pick a number between 1 and 100</div>
+        <div class="guess-input-row">
+          <input type="number" id="guessInput" min="1" max="100" placeholder="1–100" />
+          <button class="guess-btn" onclick="makeGuess()">Guess</button>
+        </div>
+      </div>
+      <div class="guess-history" id="guessHistory"></div>
+      <div id="guessResult"></div>
+      <button class="action-btn outline" id="guessRestart" onclick="initGuess()" style="display:none;margin-top:0.75rem">Play again</button>
+    </div>
+  </div>
+
+  <!-- SCRAMBLE GAME -->
+  <div class="screen" id="screen-scramble">
+    <div class="game-screen">
+      <div class="game-header">
+        <button class="back-btn" onclick="goLobby()" aria-label="Back"><i class="ti ti-arrow-left"></i></button>
+        <div class="game-title-bar"><h2>Word Scramble</h2><p>Unscramble the word</p></div>
+        <div class="game-stat" id="scrambleStat">Round 1</div>
+      </div>
+      <div class="scramble-area">
+        <div class="scrambled-word" id="scrambledWord"></div>
+        <div class="scramble-hint" id="scrambleHint"></div>
+        <input type="text" id="scrambleInput" placeholder="Your answer..." autocomplete="off" onkeydown="if(event.key==='Enter')checkScramble()" />
+      </div>
+      <button class="action-btn" onclick="checkScramble()">Check answer</button>
+      <button class="action-btn outline" onclick="nextScramble()" style="margin-top:0.5rem">Skip word</button>
+      <div id="scrambleResult" style="margin-top:0.75rem"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+let playerName = '', totalScore = 0;
+
+function show(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+}
+function enterHub() {
+  const v = document.getElementById('playerName').value.trim();
+  if (!v) { document.getElementById('playerName').focus(); return; }
+  playerName = v;
+  document.getElementById('greetName').textContent = playerName;
+  updateScore(0);
+  show('screen-lobby');
+}
+document.getElementById('playerName').addEventListener('keydown', e => { if(e.key==='Enter') enterHub(); });
+function updateScore(d) { totalScore += d; document.getElementById('totalScore').textContent = 'Score: ' + totalScore; }
+function goLobby() { clearTypingTimer(); show('screen-lobby'); }
+function startGame(g) { show('screen-' + g); if(g==='memory') initMemory(); if(g==='typing') initTyping(); if(g==='guess') initGuess(); if(g==='scramble') initScramble(); }
+
+/* ── ANIMAL MEMORY ── */
+const animals = [
+  { emoji: '🦁', name: 'Lion' },
+  { emoji: '🐘', name: 'Elephant' },
+  { emoji: '🦊', name: 'Fox' },
+  { emoji: '🐧', name: 'Penguin' },
+  { emoji: '🦋', name: 'Butterfly' },
+  { emoji: '🐬', name: 'Dolphin' },
+  { emoji: '🦒', name: 'Giraffe' },
+  { emoji: '🐼', name: 'Panda' }
+];
+let memFlipped = [], memMatched = 0, memMoves = 0, memLock = false;
+
+function initMemory() {
+  memFlipped = []; memMatched = 0; memMoves = 0; memLock = false;
+  document.getElementById('movesCount').textContent = '0 moves';
+  document.getElementById('memoryResult').innerHTML = '';
+  document.getElementById('memRestart').style.display = 'none';
+  const deck = [...animals, ...animals].sort(() => Math.random() - 0.5);
+  const grid = document.getElementById('memoryGrid');
+  grid.innerHTML = '';
+  deck.forEach((animal, i) => {
+    const card = document.createElement('div');
+    card.className = 'mem-card';
+    card.dataset.name = animal.name;
+    card.innerHTML = `
+      <div class="mem-card-inner">
+        <div class="mem-back">
+          <div class="mem-back-pattern">
+            ${Array(9).fill('🐾').join('')}
+          </div>
+        </div>
+        <div class="mem-face">
+          <div class="animal-img">${animal.emoji}</div>
+          <div class="animal-label">${animal.name}</div>
+        </div>
+      </div>`;
+    card.onclick = () => flipCard(card);
+    grid.appendChild(card);
+  });
+}
+
+function flipCard(c) {
+  if (memLock || c.classList.contains('flipped') || c.classList.contains('matched')) return;
+  c.classList.add('flipped');
+  memFlipped.push(c);
+  if (memFlipped.length === 2) {
+    memMoves++;
+    document.getElementById('movesCount').textContent = memMoves + ' moves';
+    memLock = true;
+    if (memFlipped[0].dataset.name === memFlipped[1].dataset.name) {
+      memFlipped.forEach(x => x.classList.add('matched'));
+      memMatched++;
+      memFlipped = []; memLock = false;
+      if (memMatched === animals.length) {
+        const pts = Math.max(200 - memMoves * 5, 30);
+        updateScore(pts);
+        document.getElementById('memoryResult').innerHTML = `<div class="result-msg result-win">All pairs matched in ${memMoves} moves! +${pts} pts</div>`;
+        document.getElementById('memRestart').style.display = 'block';
+      }
+    } else {
+      setTimeout(() => {
+        memFlipped.forEach(x => x.classList.remove('flipped'));
+        memFlipped = []; memLock = false;
+      }, 1000);
+    }
+  }
+}
+
+/* ── TYPING ── */
+const typingPhrases = [
+  "The quick brown fox jumps over the lazy dog",
+  "Pack my box with five dozen liquor jugs",
+  "How vexingly quick daft zebras jump",
+  "The five boxing wizards jump quickly",
+  "Sphinx of black quartz judge my vow"
+];
+let typingTimer, typingTime, typingErrors, typingStarted;
+
+function initTyping() {
+  clearTypingTimer();
+  typingTime = 30; typingErrors = 0; typingStarted = false;
+  window._typingPhrase = typingPhrases[Math.floor(Math.random() * typingPhrases.length)];
+  renderTypingPrompt(0, -1);
+  const inp = document.getElementById('typingInput');
+  inp.value = ''; inp.disabled = false;
+  document.getElementById('wpmVal').textContent = '0';
+  document.getElementById('accVal').textContent = '100%';
+  document.getElementById('timeVal').textContent = '30';
+  document.getElementById('typingStat').textContent = '⏱ 30s';
+  document.getElementById('typingResult').innerHTML = '';
+  document.getElementById('typingRestart').style.display = 'none';
+  inp.focus();
+}
+function renderTypingPrompt(pos, wrongAt) {
+  const p = window._typingPhrase;
+  let html = '';
+  for (let i = 0; i < p.length; i++) {
+    const ch = p[i] === ' ' ? '&nbsp;' : p[i];
+    if (i < pos) html += `<span class="correct">${ch}</span>`;
+    else if (i === wrongAt) html += `<span class="wrong">${ch}</span>`;
+    else if (i === pos) html += `<span class="pending cursor">${ch}</span>`;
+    else html += `<span class="pending">${ch}</span>`;
+  }
+  document.getElementById('typingPrompt').innerHTML = html;
+}
+function handleTyping() {
+  const inp = document.getElementById('typingInput');
+  const phrase = window._typingPhrase;
+  const val = inp.value;
+  if (!typingStarted && val.length > 0) {
+    typingStarted = true;
+    typingTimer = setInterval(() => {
+      typingTime--;
+      document.getElementById('timeVal').textContent = typingTime;
+      document.getElementById('typingStat').textContent = '⏱ ' + typingTime + 's';
+      if (typingTime <= 0) endTyping(false);
+    }, 1000);
+  }
+  const pos = val.length;
+  const lastChar = val[pos - 1];
+  if (lastChar && lastChar !== phrase[pos - 1]) typingErrors++;
+  const acc = pos > 0 ? Math.round(((pos - typingErrors) / pos) * 100) : 100;
+  document.getElementById('accVal').textContent = acc + '%';
+  const elapsed = 30 - typingTime;
+  if (elapsed > 0) document.getElementById('wpmVal').textContent = Math.round((pos / 5) / (elapsed / 60));
+  if (pos <= phrase.length) renderTypingPrompt(pos, (lastChar && lastChar !== phrase[pos - 1]) ? pos - 1 : -1);
+  if (val === phrase) endTyping(true);
+}
+function endTyping(won) {
+  clearTypingTimer();
+  document.getElementById('typingInput').disabled = true;
+  const wpm = parseInt(document.getElementById('wpmVal').textContent);
+  const acc = parseInt(document.getElementById('accVal').textContent);
+  const pts = won ? wpm + acc : Math.floor(wpm / 2);
+  updateScore(pts);
+  document.getElementById('typingResult').innerHTML = `<div class="result-msg ${won ? 'result-win' : 'result-lose'}">${won ? 'Finished!' : "Time's up!"} ${wpm} WPM · ${acc}% accuracy · +${pts} pts</div>`;
+  document.getElementById('typingRestart').style.display = 'block';
+}
+function clearTypingTimer() { clearInterval(typingTimer); }
+
+/* ── GUESS ── */
+let guessSecret, guessLeft;
+function initGuess() {
+  guessSecret = Math.floor(Math.random() * 100) + 1; guessLeft = 10;
+  document.getElementById('guessBig').textContent = '?';
+  document.getElementById('guessHint').textContent = 'Pick a number between 1 and 100';
+  document.getElementById('guessAttempts').textContent = '10 left';
+  document.getElementById('guessHistory').innerHTML = '';
+  document.getElementById('guessResult').innerHTML = '';
+  document.getElementById('guessRestart').style.display = 'none';
+  document.getElementById('guessInput').value = '';
+  document.getElementById('guessInput').disabled = false;
+  document.querySelector('.guess-btn').disabled = false;
+}
+function makeGuess() {
+  const v = parseInt(document.getElementById('guessInput').value);
+  if (!v || v < 1 || v > 100) return;
+  guessLeft--;
+  document.getElementById('guessAttempts').textContent = guessLeft + ' left';
+  document.getElementById('guessInput').value = '';
+  const hist = document.getElementById('guessHistory');
+  if (v === guessSecret) {
+    document.getElementById('guessBig').textContent = v;
+    document.getElementById('guessHint').textContent = 'Correct!';
+    const pts = guessLeft * 10 + 10;
+    updateScore(pts);
+    document.getElementById('guessResult').innerHTML = `<div class="result-msg result-win" style="margin-top:1rem">You got it! The number was ${guessSecret}. +${pts} pts</div>`;
+    const pill = document.createElement('span'); pill.className = 'guess-pill'; pill.style = 'background:#111;color:#fff'; pill.textContent = '✓ ' + v; hist.appendChild(pill);
+    endGuess();
+  } else {
+    const dir = v < guessSecret ? 'too low ↑' : 'too high ↓';
+    document.getElementById('guessBig').textContent = v;
+    document.getElementById('guessHint').textContent = v + ' is ' + dir;
+    const pill = document.createElement('span'); pill.className = 'guess-pill ' + (v < guessSecret ? 'too-low' : 'too-high'); pill.textContent = v; hist.appendChild(pill);
+    if (guessLeft <= 0) {
+      document.getElementById('guessHint').textContent = 'The number was ' + guessSecret;
+      document.getElementById('guessResult').innerHTML = `<div class="result-msg result-lose" style="margin-top:1rem">Game over! The answer was ${guessSecret}.</div>`;
+      endGuess();
+    }
+  }
+}
+function endGuess() {
+  document.getElementById('guessInput').disabled = true;
+  document.querySelector('.guess-btn').disabled = true;
+  document.getElementById('guessRestart').style.display = 'block';
+}
+document.getElementById('guessInput').addEventListener('keydown', e => { if(e.key==='Enter') makeGuess(); });
+
+/* ── SCRAMBLE ── */
+const wordList = [
+  { word: 'OCEAN', hint: 'Large body of water' },
+  { word: 'PLANET', hint: 'Orbits a star' },
+  { word: 'BRIDGE', hint: 'Crosses a river' },
+  { word: 'CASTLE', hint: 'Medieval fortress' },
+  { word: 'JUNGLE', hint: 'Dense tropical forest' },
+  { word: 'ROCKET', hint: 'Goes to space' },
+  { word: 'SHADOW', hint: 'Follows you in sunlight' },
+  { word: 'WINTER', hint: 'Coldest season' },
+  { word: 'VIOLIN', hint: 'Stringed instrument' },
+  { word: 'HARBOR', hint: 'Safe port for ships' }
+];
+let scrambleIdx = 0;
+function shuffle(str) { const a = str.split(''); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} const r=a.join(''); return r===str?shuffle(str):r; }
+function initScramble() { scrambleIdx = 0; loadScrambleWord(); }
+function loadScrambleWord() {
+  const entry = wordList[scrambleIdx % wordList.length];
+  document.getElementById('scrambleStat').textContent = 'Round ' + (scrambleIdx + 1);
+  document.getElementById('scrambledWord').textContent = shuffle(entry.word);
+  document.getElementById('scrambleHint').textContent = 'Hint: ' + entry.hint;
+  document.getElementById('scrambleInput').value = '';
+  document.getElementById('scrambleResult').innerHTML = '';
+  document.getElementById('scrambleInput').focus();
+}
+function checkScramble() {
+  const ans = document.getElementById('scrambleInput').value.trim().toUpperCase();
+  if (!ans) return;
+  if (ans === wordList[scrambleIdx % wordList.length].word) {
+    updateScore(20);
+    document.getElementById('scrambleResult').innerHTML = `<div class="result-msg result-win">Correct! +20 pts. Next in 1.5s...</div>`;
+    scrambleIdx++;
+    setTimeout(loadScrambleWord, 1500);
+  } else {
+    document.getElementById('scrambleResult').innerHTML = `<div class="result-msg result-lose">Not quite — try again!</div>`;
+  }
+}
+function nextScramble() { scrambleIdx++; loadScrambleWord(); }
+</script>
